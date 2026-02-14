@@ -1,8 +1,8 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { MazeData, Theme } from '../types';
-import { CELL_SIZE, WALL_HEIGHT } from '../constants';
+import { MazeData, Theme } from '../types.ts';
+import { CELL_SIZE, WALL_HEIGHT } from '../constants.ts';
 
 interface BoardProps {
   maze: MazeData;
@@ -18,11 +18,9 @@ const useWoodTexture = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    // Base sandy wood color
     ctx.fillStyle = '#e5c090';
     ctx.fillRect(0, 0, 1024, 1024);
 
-    // Deep Grain
     ctx.lineWidth = 3;
     for (let i = 0; i < 80; i++) {
       ctx.strokeStyle = i % 3 === 0 ? '#7a421a' : '#5a2d0c';
@@ -34,7 +32,6 @@ const useWoodTexture = () => {
       ctx.stroke();
     }
 
-    // Finer Grain
     ctx.lineWidth = 1;
     for (let i = 0; i < 200; i++) {
       ctx.strokeStyle = '#4a2508';
@@ -46,7 +43,6 @@ const useWoodTexture = () => {
       ctx.stroke();
     }
 
-    // Knots
     for (let i = 0; i < 12; i++) {
       const kx = Math.random() * 1024;
       const ky = Math.random() * 1024;
@@ -60,7 +56,6 @@ const useWoodTexture = () => {
       ctx.ellipse(kx, ky, radX, radY, rot, 0, Math.PI * 2);
       ctx.fill();
       
-      // Ring around knot
       ctx.strokeStyle = '#3a1d06';
       ctx.beginPath();
       ctx.ellipse(kx, ky, radX * 1.5, radY * 1.5, rot, 0, Math.PI * 2);
@@ -92,19 +87,16 @@ const TargetHole: React.FC = () => {
 
   return (
     <group position={[0, 0, 0]}>
-      {/* Target Hole Pit - Deeper and open at bottom */}
       <mesh position={[0, -2.5, 0]}>
         <cylinderGeometry args={[0.45, 0.45, 5, 32, 1, true]} />
         <meshBasicMaterial color="#000000" side={THREE.DoubleSide} />
       </mesh>
       
-      {/* Subtle Fog for depth inside the hole */}
       <mesh position={[0, -4.5, 0]}>
         <circleGeometry args={[0.45, 32]} />
         <meshBasicMaterial color="#000000" transparent opacity={0.8} />
       </mesh>
 
-      {/* Pulsing Rim Glow */}
       <mesh ref={glowRef} position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.48, 0.6, 32]} />
         <meshStandardMaterial 
@@ -116,19 +108,16 @@ const TargetHole: React.FC = () => {
         />
       </mesh>
 
-      {/* Decorative Rotating Ring */}
       <mesh ref={ringRef} position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[0.62, 0.65, 64]} />
         <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={0.5} transparent opacity={0.5} />
       </mesh>
 
-      {/* Golf Flag Pole */}
       <mesh position={[0, 1.0, 0]} castShadow>
         <cylinderGeometry args={[0.02, 0.02, 2, 8]} />
         <meshStandardMaterial color="#eeeeee" metalness={0.9} roughness={0.1} />
       </mesh>
       
-      {/* Flag Cloth */}
       <mesh position={[0.3, 1.8, 0]} castShadow>
         <boxGeometry args={[0.6, 0.4, 0.02]} />
         <meshStandardMaterial color="#ef4444" emissive="#7f1d1d" emissiveIntensity={0.3} />
@@ -154,7 +143,6 @@ export const Board: React.FC<BoardProps> = ({ maze, tilt, theme }) => {
 
   return (
     <group rotation={[tilt.x, 0, tilt.z]}>
-      {/* Base Plate */}
       <mesh receiveShadow position={[0, -0.05, 0]}>
         <boxGeometry args={[maze.width * CELL_SIZE, 0.1, maze.height * CELL_SIZE]} />
         {floorMaterial}
@@ -162,7 +150,6 @@ export const Board: React.FC<BoardProps> = ({ maze, tilt, theme }) => {
 
       <TargetHole />
 
-      {/* Walls */}
       {maze.grid.map((row, z) => 
         row.map((cell, x) => {
           if (cell === 0) return null;
@@ -177,7 +164,6 @@ export const Board: React.FC<BoardProps> = ({ maze, tilt, theme }) => {
         })
       )}
 
-      {/* Border Walls */}
       <group position={[0, WALL_HEIGHT / 2, 0]}>
         <mesh position={[0, 0, (halfH + 1) * CELL_SIZE]} castShadow receiveShadow>
           <boxGeometry args={[(maze.width + 2) * CELL_SIZE, WALL_HEIGHT, CELL_SIZE]} />

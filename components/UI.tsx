@@ -1,6 +1,6 @@
 import React from 'react';
-import { GameState, Difficulty, Theme, MarbleColor } from '../types';
-import { MAX_TILT } from '../constants';
+import { GameState, Difficulty, Theme, MarbleColor } from '../types.ts';
+import { MAX_TILT } from '../constants.ts';
 
 interface UIProps {
   gameState: GameState;
@@ -19,7 +19,7 @@ interface UIProps {
 const MARBLE_COLORS = [
   { id: MarbleColor.RED, hex: '#ef4444' },
   { id: MarbleColor.GREEN, hex: '#22c55e' },
-  { id: MarbleColor.YELLOW, hex: '#facc15' }, // Match brightened yellow
+  { id: MarbleColor.YELLOW, hex: '#facc15' },
   { id: MarbleColor.BLUE, hex: '#3b82f6' },
 ];
 

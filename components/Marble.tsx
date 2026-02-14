@@ -1,8 +1,8 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { MARBLE_RADIUS } from '../constants';
-import { GameState, MazeData, MarbleColor } from '../types';
+import { MARBLE_RADIUS } from '../constants.ts';
+import { GameState, MazeData, MarbleColor } from '../types.ts';
 
 interface MarbleProps {
   position: THREE.Vector3;
@@ -47,7 +47,6 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
     const halfW = (maze.width - 1) / 2;
     const halfH = (maze.height - 1) / 2;
 
-    // Demo Mode Logic: Proportional Steering
     if (isDemoMode && demoPath.length > 0) {
       const target = demoPath[currentPathIndex.current];
       if (target) {
@@ -73,7 +72,6 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
       }
     }
 
-    // Apply gravity
     vel.current.x += Math.sin(-tilt.z) * gravity;
     vel.current.z += Math.sin(tilt.x) * gravity;
     vel.current.multiplyScalar(friction);
@@ -89,19 +87,16 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
 
     const padding = MARBLE_RADIUS * 0.7;
     
-    // Victory / Fall check: If very close to the center (hole is at 0,0)
     const distToCenter = Math.sqrt(pos.current.x ** 2 + pos.current.z ** 2);
     if (distToCenter < 0.42) {
-      // If marble is physically over the hole, drop it!
       if (distToCenter < 0.38) {
         setFalling(true);
-        vel.current.set(0, 0, 0); // Stop horizontal sliding to drop straight down
+        vel.current.set(0, 0, 0);
         onVictory();
         return;
       }
     }
 
-    // Wall Collisions
     if (checkWall(nextPos.x + (vel.current.x > 0 ? padding : -padding), pos.current.z)) {
       vel.current.x *= -0.3;
     } else {
@@ -116,13 +111,11 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
 
     if (meshRef.current) {
       meshRef.current.position.set(pos.current.x, MARBLE_RADIUS, pos.current.z);
-      // Rotation for the inner core to simulate rolling
       const innerCore = meshRef.current.children[1] as THREE.Mesh;
       if (innerCore) {
         innerCore.rotation.z -= vel.current.x / MARBLE_RADIUS;
         innerCore.rotation.x += vel.current.z / MARBLE_RADIUS;
       }
-      // Outer shell rolling
       const outerShell = meshRef.current.children[0] as THREE.Mesh;
       if (outerShell) {
         outerShell.rotation.z -= vel.current.x / MARBLE_RADIUS;
@@ -131,21 +124,19 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
     }
   });
 
-  // Falling animation logic
   useFrame((state, delta) => {
     if (falling && meshRef.current) {
-      meshRef.current.position.y -= delta * 4; // Fall into the hole
-      meshRef.current.scale.multiplyScalar(0.96); // Shrink out of existence
+      meshRef.current.position.y -= delta * 4;
+      meshRef.current.scale.multiplyScalar(0.96);
     }
   });
 
   return (
     <group ref={meshRef} position={[position.x, MARBLE_RADIUS, position.z]}>
-      {/* Outer Shell - Shiny and translucent */}
       <mesh castShadow>
         <sphereGeometry args={[MARBLE_RADIUS, 32, 32]} />
         <meshPhysicalMaterial 
-          roughness={0.0} // Perfect specular surface
+          roughness={0.0} 
           transmission={0.45} 
           thickness={1.5} 
           envMapIntensity={3.5}
@@ -156,7 +147,6 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
           reflectivity={1.0}
         />
       </mesh>
-      {/* Internal Core - Saturated color */}
       <mesh>
         <torusKnotGeometry args={[MARBLE_RADIUS * 0.55, 0.04, 64, 8]} />
         <meshStandardMaterial 
@@ -167,7 +157,6 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
         />
       </mesh>
       
-      {/* Subtle Contact Shadow - Follows marble position on the floor */}
       {!falling && (
         <mesh position={[0, -MARBLE_RADIUS + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <circleGeometry args={[MARBLE_RADIUS * 1.1, 32]} />

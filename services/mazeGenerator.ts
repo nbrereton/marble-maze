@@ -1,7 +1,6 @@
-import { MazeData } from '../types';
+import { MazeData } from '../types.ts';
 
 export const generateMaze = (size: number, shortcutChance: number = 0): MazeData => {
-  // Ensure size is odd for the carving algorithm
   const actualSize = size % 2 === 0 ? size + 1 : size;
   const grid = Array(actualSize).fill(0).map(() => Array(actualSize).fill(1));
 
@@ -23,10 +22,8 @@ export const generateMaze = (size: number, shortcutChance: number = 0): MazeData
     }
   };
 
-  // Start carving from a reliable odd coordinate
   carve(1, 1);
 
-  // Add shortcuts based on difficulty config
   if (shortcutChance > 0) {
     for (let y = 1; y < actualSize - 1; y++) {
       for (let x = 1; x < actualSize - 1; x++) {
@@ -41,11 +38,9 @@ export const generateMaze = (size: number, shortcutChance: number = 0): MazeData
     }
   }
 
-  // Ensure the center is cleared for the target hole
   const center = Math.floor(actualSize / 2);
   grid[center][center] = 0;
   
-  // Create a 3x3 path clearing around center to ensure the hole is accessible
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       grid[center + dy][center + dx] = 0;
@@ -59,15 +54,13 @@ export const getRandomStartPosition = (maze: MazeData): { x: number, y: number }
   const center = Math.floor(maze.width / 2);
   let x = 1, y = 1;
   let attempts = 0;
-  const maxAttempts = 500; // Increased attempts for larger mazes
+  const maxAttempts = 500;
 
-  // Paths in our recursive backtracker are always at odd coordinates
   const possibleCoords: number[] = [];
   for (let i = 1; i < maze.width - 1; i += 2) {
     possibleCoords.push(i);
   }
 
-  // Define a minimum Euclidean distance from center (approx 40% of maze width)
   const minDistance = maze.width * 0.4;
 
   do {
@@ -78,13 +71,11 @@ export const getRandomStartPosition = (maze: MazeData): { x: number, y: number }
     const isWall = maze.grid[y][x] === 1;
     const distToCenter = Math.sqrt(Math.pow(x - center, 2) + Math.pow(y - center, 2));
     
-    // Condition: Must be a path AND at least minDistance away from center
     if (!isWall && distToCenter >= minDistance) {
       return { x, y };
     }
   } while (attempts < maxAttempts);
 
-  // Fallback: If no point far enough is found in random attempts, find the furthest path coordinate
   let furthest = { x: 1, y: 1, dist: 0 };
   for (let r = 1; r < maze.height - 1; r++) {
     for (let c = 1; c < maze.width - 1; c++) {

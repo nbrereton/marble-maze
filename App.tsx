@@ -2,15 +2,15 @@ import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { PerspectiveCamera, Stars, Text, Environment, Float } from '@react-three/drei';
 import * as THREE from 'three';
-import { GameState, MazeData, Difficulty, Theme, MarbleColor } from './types';
-import { DIFFICULTY_CONFIG, MAX_TILT, DEADZONE, TILT_SPEED, INTRO_DURATION } from './constants';
-import { generateMaze, getRandomStartPosition, findPathToCenter } from './services/mazeGenerator';
-import { Board } from './components/Board';
-import { Marble } from './components/Marble';
-import { UI } from './components/UI';
-import { JazzyMusic } from './components/JazzyMusic';
-import { VictorySounds } from './components/VictorySounds';
-import { FireworksEffect } from './components/Fireworks';
+import { GameState, MazeData, Difficulty, Theme, MarbleColor } from './types.ts';
+import { DIFFICULTY_CONFIG, MAX_TILT, DEADZONE, TILT_SPEED, INTRO_DURATION } from './constants.ts';
+import { generateMaze, getRandomStartPosition, findPathToCenter } from './services/mazeGenerator.ts';
+import { Board } from './components/Board.tsx';
+import { Marble } from './components/Marble.tsx';
+import { UI } from './components/UI.tsx';
+import { JazzyMusic } from './components/JazzyMusic.tsx';
+import { VictorySounds } from './components/VictorySounds.tsx';
+import { FireworksEffect } from './components/Fireworks.tsx';
 
 const Scene: React.FC<{
   maze: MazeData;
@@ -30,12 +30,10 @@ const Scene: React.FC<{
   const victoryTextRef = useRef<THREE.Group>(null);
   const victoryOrbitAngle = useRef(0);
 
-  // Dynamic zoom: based on maze width to ensure everything is visible
   const mazeWidth = maze?.width || 13;
   const targetDistance = Math.max(14, mazeWidth * 1.1);
   const targetHeight = Math.max(16, mazeWidth * 1.3);
 
-  // Reset intro timer when game starts/resets
   useEffect(() => {
     if (gameState === GameState.INTRO) {
       introStartTime.current = null;
@@ -49,7 +47,6 @@ const Scene: React.FC<{
         const elapsed = (state.clock.elapsedTime - introStartTime.current) * 1000;
         const progress = Math.min(elapsed / INTRO_DURATION, 1);
         
-        // 2 full circuits = 4 * PI
         const angle = progress * Math.PI * 4;
         const radius = 30 + mazeWidth * 0.5 - progress * (15 + mazeWidth * 0.5);
         const height = 20 + mazeWidth * 0.5 - progress * (6 + mazeWidth * 0.5);
@@ -58,7 +55,6 @@ const Scene: React.FC<{
         camera.lookAt(0, 0, 0);
       } 
       else if (gameState === GameState.VICTORY) {
-        // Smooth orbital camera during victory
         victoryOrbitAngle.current += delta * 0.25;
         const orbitRadius = targetDistance * 1.6;
         camera.position.set(
@@ -68,20 +64,16 @@ const Scene: React.FC<{
         );
         camera.lookAt(0, 0, 0);
 
-        // Spin the 3D text in the scene
         if (victoryTextRef.current) {
           victoryTextRef.current.rotation.y += delta * 2;
         }
       }
       else {
-        // Normal smooth gameplay camera
         const targetPos = new THREE.Vector3(0, targetHeight, targetDistance);
         camera.position.lerp(targetPos, 0.05);
         camera.lookAt(0, 0, 0);
       }
-    } catch (e) {
-      // Silently catch r3f frame errors
-    }
+    } catch (e) {}
   });
 
   return (
@@ -89,9 +81,7 @@ const Scene: React.FC<{
       <color attach="background" args={['#020202']} />
       <PerspectiveCamera makeDefault fov={50} position={[0, 40, 40]} />
       <ambientLight intensity={0.5} />
-      {/* Key point light for strong specular highlights */}
       <pointLight position={[30, 60, 30]} intensity={12} castShadow shadow-mapSize={[2048, 2048]} />
-      {/* Fill light to bring out maze definition */}
       <pointLight position={[-30, 40, -10]} intensity={4} color="#5577ff" />
       <Environment preset="apartment" />
       <Stars radius={150} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
@@ -157,7 +147,6 @@ const App: React.FC = () => {
 
   const initGame = useCallback((diff: Difficulty) => {
     const config = DIFFICULTY_CONFIG[diff];
-    // Generate COMPLETELY NEW maze and start pos on every call (including Reset)
     const newMaze = generateMaze(config.gridSize, config.mazeComplexity);
     const startPos = getRandomStartPosition(newMaze);
     const halfW = (newMaze.width - 1) / 2;
@@ -234,16 +223,14 @@ const App: React.FC = () => {
         return;
       }
       if (gameState !== GameState.PLAYING || isDemoMode) return;
-      // Using IJKL for tilt controls
       const i = keys.current['i'], k = keys.current['k'], j = keys.current['j'], l = keys.current['l'];
       if (i || k || j || l) {
         setTilt(prev => {
           let nx = prev.x, nz = prev.z;
           if (i) nx = Math.max(nx - TILT_SPEED, -MAX_TILT);
           if (k) nx = Math.min(nx + TILT_SPEED, MAX_TILT);
-          // Swapped J and L logic for intuitive tilt
-          if (j) nz = Math.min(nz + TILT_SPEED, MAX_TILT); // J (Left) tilts board Left (Rolls Left)
-          if (l) nz = Math.max(nz - TILT_SPEED, -MAX_TILT); // L (Right) tilts board Right (Rolls Right)
+          if (j) nz = Math.min(nz + TILT_SPEED, MAX_TILT);
+          if (l) nz = Math.max(nz - TILT_SPEED, -MAX_TILT);
           if (!i && !k) nx *= 0.88;
           if (!j && !l) nz *= 0.88;
           return { x: nx, z: nz };
@@ -261,7 +248,6 @@ const App: React.FC = () => {
       <Canvas shadows gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
         <Suspense fallback={null}>
           <Scene 
-            // Unique key to force a clean Scene re-mount on every new maze generation
             key={`${maze.width}-${marbleStart.x}-${marbleStart.z}`} 
             maze={maze} 
             gameState={gameState} 
@@ -292,7 +278,6 @@ const App: React.FC = () => {
         onChangeDifficulty={() => setGameState(GameState.START_MENU)}
       />
 
-      {/* Triumphant "YOU WON!" Overlay */}
       {gameState === GameState.VICTORY && (
         <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-[100] animate-in fade-in zoom-in duration-1000">
            <div className="bg-black/40 backdrop-blur-md px-16 py-8 rounded-[4rem] border-8 border-amber-400/50 shadow-[0_0_100px_rgba(251,191,36,0.3)]">
