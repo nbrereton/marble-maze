@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { PerspectiveCamera, Stars, Text, Environment, Float } from '@react-three/drei';
 import * as THREE from 'three';
 import { GameState, MazeData, Difficulty, Theme, MarbleColor } from './types.ts';
-import { DIFFICULTY_CONFIG, MAX_TILT, DEADZONE, TILT_SPEED, INTRO_DURATION } from './constants.ts';
+import { DIFFICULTY_CONFIG, MAX_TILT, DEADZONE, TILT_SPEED, INTRO_DURATION, DRAG_SENSITIVITY } from './constants.ts';
 import { generateMaze, getRandomStartPosition, findPathToCenter } from './services/mazeGenerator.ts';
 import { Board } from './components/Board.tsx';
 import { Marble } from './components/Marble.tsx';
@@ -143,7 +143,10 @@ const App: React.FC = () => {
   const [tilt, setTilt] = useState({ x: 0, z: 0 });
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [demoPath, setDemoPath] = useState<{ x: number, y: number }[]>([]);
+  
   const keys = useRef<{ [key: string]: boolean }>({});
+  const dragStart = useRef<{ x: number, y: number } | null>(null);
+  const isTouchDragging = useRef(false);
 
   const initGame = useCallback((diff: Difficulty) => {
     const config = DIFFICULTY_CONFIG[diff];
@@ -197,22 +200,63 @@ const App: React.FC = () => {
       if (k === 'd') triggerDemo();
     };
     const handleKeyUp = (e: KeyboardEvent) => keys.current[e.key.toLowerCase()] = false;
-    const handleMouseMove = (e: MouseEvent) => {
+    
+    // Unified Pointer Event Handlers
+    const handlePointerDown = (e: PointerEvent) => {
       if (gameState !== GameState.PLAYING || isDemoMode) return;
-      const nx = (e.clientX / window.innerWidth) * 2 - 1;
-      const ny = (e.clientY / window.innerHeight) * 2 - 1;
-      const tx = Math.abs(ny) < DEADZONE ? 0 : ny * MAX_TILT;
-      const tz = Math.abs(nx) < DEADZONE ? 0 : -nx * MAX_TILT;
-      setTilt({ x: tx, z: tz });
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        isTouchDragging.current = true;
+        dragStart.current = { x: e.clientX, y: e.clientY };
+      }
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (gameState !== GameState.PLAYING || isDemoMode) return;
+
+      if (e.pointerType === 'mouse') {
+        // Desktop Hover Logic: Tilt based on mouse position relative to window center
+        const nx = (e.clientX / window.innerWidth) * 2 - 1;
+        const ny = (e.clientY / window.innerHeight) * 2 - 1;
+        const tx = Math.abs(ny) < DEADZONE ? 0 : ny * MAX_TILT;
+        const tz = Math.abs(nx) < DEADZONE ? 0 : -nx * MAX_TILT;
+        setTilt({ x: tx, z: tz });
+      } else if (isTouchDragging.current && dragStart.current) {
+        // Touch Drag Logic: Tilt relative to the touch start point
+        const dx = e.clientX - dragStart.current.x;
+        const dy = e.clientY - dragStart.current.y;
+        
+        const normX = THREE.MathUtils.clamp(dx / DRAG_SENSITIVITY, -1, 1);
+        const normY = THREE.MathUtils.clamp(dy / DRAG_SENSITIVITY, -1, 1);
+        
+        setTilt({
+          x: normY * MAX_TILT,
+          z: -normX * MAX_TILT
+        });
+      }
+    };
+
+    const handlePointerUp = (e: PointerEvent) => {
+      if (e.pointerType === 'touch' || e.pointerType === 'pen') {
+        isTouchDragging.current = false;
+        dragStart.current = null;
+        setTilt({ x: 0, z: 0 }); // Level board on release for touch
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('pointerdown', handlePointerDown);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
   }, [gameState, isDemoMode, handleReset, handleTogglePause, triggerDemo]);
 
@@ -223,6 +267,8 @@ const App: React.FC = () => {
         return;
       }
       if (gameState !== GameState.PLAYING || isDemoMode) return;
+      
+      // IJKL Keyboard Overrides
       const i = keys.current['i'], k = keys.current['k'], j = keys.current['j'], l = keys.current['l'];
       if (i || k || j || l) {
         setTilt(prev => {
@@ -231,8 +277,9 @@ const App: React.FC = () => {
           if (k) nx = Math.min(nx + TILT_SPEED, MAX_TILT);
           if (j) nz = Math.min(nz + TILT_SPEED, MAX_TILT);
           if (l) nz = Math.max(nz - TILT_SPEED, -MAX_TILT);
-          if (!i && !k) nx *= 0.88;
-          if (!j && !l) nz *= 0.88;
+          // Only damp if not currently being actively controlled by mouse or keyboard
+          if (!i && !k && !isTouchDragging.current) nx *= 0.88;
+          if (!j && !l && !isTouchDragging.current) nz *= 0.88;
           return { x: nx, z: nz };
         });
       }
@@ -241,7 +288,7 @@ const App: React.FC = () => {
   }, [gameState, isDemoMode]);
 
   return (
-    <div className="w-full h-screen bg-[#050505] overflow-hidden select-none relative">
+    <div className="w-full h-screen bg-[#050505] overflow-hidden select-none relative touch-none">
       <JazzyMusic isPlaying={gameState === GameState.PLAYING} />
       <VictorySounds trigger={gameState === GameState.VICTORY} />
       

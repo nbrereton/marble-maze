@@ -28,3 +28,5 @@ export const MAX_TILT = 15 * (Math.PI / 180);
 export const DEADZONE = 0.05;
 export const INTRO_DURATION = 8000;
 export const TILT_SPEED = 0.02;
+// Drag 150 pixels for max tilt
+export const DRAG_SENSITIVITY = 150;
