@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { MARBLE_RADIUS } from '../constants.ts';
+import { MARBLE_RADIUS, CELL_SIZE } from '../constants.ts';
 import { GameState, MazeData, MarbleColor } from '../types.ts';
 
 interface MarbleProps {
@@ -19,10 +19,11 @@ interface MarbleProps {
 }
 
 const COLOR_MAP = {
-  [MarbleColor.RED]: { color: '#ff0000', emissive: '#aa0000' },
-  [MarbleColor.GREEN]: { color: '#00ff00', emissive: '#005500' },
-  [MarbleColor.YELLOW]: { color: '#ffff00', emissive: '#ffaa00' },
-  [MarbleColor.BLUE]: { color: '#0088ff', emissive: '#0022aa' },
+  // Hyper-saturated colors for maximum punch
+  [MarbleColor.RED]: { color: '#ff0000', emissive: '#ff0000' },
+  [MarbleColor.GREEN]: { color: '#00ff22', emissive: '#00ff22' },
+  [MarbleColor.YELLOW]: { color: '#ffea00', emissive: '#ffea00' },
+  [MarbleColor.BLUE]: { color: '#0099ff', emissive: '#0099ff' },
 };
 
 export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState, onVictory, gravity, friction, isDemoMode, demoPath, setTilt, marbleColor }) => {
@@ -52,7 +53,6 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
       if (target) {
         const targetWorldX = target.x - halfW;
         const targetWorldZ = target.y - halfH;
-        
         const dx = targetWorldX - pos.current.x;
         const dz = targetWorldZ - pos.current.z;
         const distSq = dx * dx + dz * dz;
@@ -63,11 +63,7 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
           const steerX = THREE.MathUtils.clamp(dx * 6, -1, 1);
           const steerZ = THREE.MathUtils.clamp(dz * 6, -1, 1);
           const maxAutoTilt = 0.25; 
-          
-          setTilt({ 
-            x: steerZ * maxAutoTilt, 
-            z: -steerX * maxAutoTilt 
-          });
+          setTilt({ x: steerZ * maxAutoTilt, z: -steerX * maxAutoTilt });
         }
       }
     }
@@ -76,91 +72,132 @@ export const Marble: React.FC<MarbleProps> = ({ position, tilt, maze, gameState,
     vel.current.z += Math.sin(tilt.x) * gravity;
     vel.current.multiplyScalar(friction);
 
-    const nextPos = pos.current.clone().add(vel.current);
+    let nextX = pos.current.x + vel.current.x;
+    let nextZ = pos.current.z + vel.current.z;
 
-    const checkWall = (px: number, pz: number) => {
-      const gx = Math.round(px + halfW);
-      const gz = Math.round(pz + halfH);
+    const checkWall = (gx: number, gz: number) => {
       if (gx < 0 || gx >= maze.width || gz < 0 || gz >= maze.height) return true;
       return maze.grid[gz][gx] === 1;
     };
 
-    const padding = MARBLE_RADIUS * 0.7;
+    const currentGridX = Math.round(pos.current.x + halfW);
+    const currentGridZ = Math.round(pos.current.z + halfH);
+    const wallBuffer = MARBLE_RADIUS + 0.001; 
     
-    const distToCenter = Math.sqrt(pos.current.x ** 2 + pos.current.z ** 2);
-    if (distToCenter < 0.42) {
-      if (distToCenter < 0.38) {
-        setFalling(true);
-        vel.current.set(0, 0, 0);
-        onVictory();
-        return;
+    if (vel.current.x > 0) {
+      if (checkWall(currentGridX + 1, currentGridZ)) {
+        const wallX = (currentGridX + 0.5) - halfW;
+        if (nextX + MARBLE_RADIUS > wallX) {
+          nextX = wallX - wallBuffer;
+          vel.current.x *= -0.4;
+        }
+      }
+    } else if (vel.current.x < 0) {
+      if (checkWall(currentGridX - 1, currentGridZ)) {
+        const wallX = (currentGridX - 0.5) - halfW;
+        if (nextX - MARBLE_RADIUS < wallX) {
+          nextX = wallX + wallBuffer;
+          vel.current.x *= -0.4;
+        }
       }
     }
 
-    if (checkWall(nextPos.x + (vel.current.x > 0 ? padding : -padding), pos.current.z)) {
-      vel.current.x *= -0.3;
-    } else {
-      pos.current.x = nextPos.x;
+    if (vel.current.z > 0) {
+      if (checkWall(currentGridX, currentGridZ + 1)) {
+        const wallZ = (currentGridZ + 0.5) - halfH;
+        if (nextZ + MARBLE_RADIUS > wallZ) {
+          nextZ = wallZ - wallBuffer;
+          vel.current.z *= -0.4;
+        }
+      }
+    } else if (vel.current.z < 0) {
+      if (checkWall(currentGridX, currentGridZ - 1)) {
+        const wallZ = (currentGridZ - 0.5) - halfH;
+        if (nextZ - MARBLE_RADIUS < wallZ) {
+          nextZ = wallZ + wallBuffer;
+          vel.current.z *= -0.4;
+        }
+      }
     }
 
-    if (checkWall(pos.current.x, nextPos.z + (vel.current.z > 0 ? padding : -padding))) {
-      vel.current.z *= -0.3;
-    } else {
-      pos.current.z = nextPos.z;
+    const nextGridX = Math.round(nextX + halfW);
+    const nextGridZ = Math.round(nextZ + halfH);
+    if (checkWall(nextGridX, nextGridZ)) {
+      nextX = pos.current.x;
+      nextZ = pos.current.z;
+    }
+
+    pos.current.x = nextX;
+    pos.current.z = nextZ;
+
+    const distToCenterSq = pos.current.x ** 2 + pos.current.z ** 2;
+    if (distToCenterSq < 0.17) {
+      setFalling(true);
+      vel.current.set(0, 0, 0);
+      onVictory();
+      return;
     }
 
     if (meshRef.current) {
       meshRef.current.position.set(pos.current.x, MARBLE_RADIUS, pos.current.z);
-      const innerCore = meshRef.current.children[1] as THREE.Mesh;
-      if (innerCore) {
-        innerCore.rotation.z -= vel.current.x / MARBLE_RADIUS;
-        innerCore.rotation.x += vel.current.z / MARBLE_RADIUS;
-      }
       const outerShell = meshRef.current.children[0] as THREE.Mesh;
+      const innerCore = meshRef.current.children[1] as THREE.Mesh;
       if (outerShell) {
         outerShell.rotation.z -= vel.current.x / MARBLE_RADIUS;
         outerShell.rotation.x += vel.current.z / MARBLE_RADIUS;
+      }
+      if (innerCore) {
+        innerCore.rotation.z -= vel.current.x / MARBLE_RADIUS;
+        innerCore.rotation.x += vel.current.z / MARBLE_RADIUS;
+        innerCore.rotation.y += delta * 2.0;
       }
     }
   });
 
   useFrame((state, delta) => {
     if (falling && meshRef.current) {
-      meshRef.current.position.y -= delta * 4;
-      meshRef.current.scale.multiplyScalar(0.96);
+      meshRef.current.position.y -= delta * 5;
+      meshRef.current.scale.multiplyScalar(0.95);
     }
   });
 
   return (
     <group ref={meshRef} position={[position.x, MARBLE_RADIUS, position.z]}>
+      {/* Premium Glass Shell */}
       <mesh castShadow>
-        <sphereGeometry args={[MARBLE_RADIUS, 32, 32]} />
+        <sphereGeometry args={[MARBLE_RADIUS, 128, 64]} />
         <meshPhysicalMaterial 
           roughness={0.0} 
-          transmission={0.45} 
-          thickness={1.5} 
-          envMapIntensity={3.5}
+          transmission={0.98} 
+          thickness={0.6} 
+          envMapIntensity={6.0}
           color="#ffffff"
           clearcoat={1.0}
           clearcoatRoughness={0.0}
-          ior={1.45}
+          ior={1.75}
           reflectivity={1.0}
+          transparent={true}
+          iridescence={1.0}
+          iridescenceIOR={1.4}
         />
       </mesh>
+      
+      {/* High-Intensity Saturated Inner Core */}
       <mesh>
-        <torusKnotGeometry args={[MARBLE_RADIUS * 0.55, 0.04, 64, 8]} />
+        <torusKnotGeometry args={[MARBLE_RADIUS * 0.52, 0.05, 120, 16, 3, 4]} />
         <meshStandardMaterial 
           color={colors.color} 
           emissive={colors.emissive} 
-          emissiveIntensity={2.0} 
-          roughness={0.3}
+          emissiveIntensity={18.0} 
+          roughness={0.0}
+          metalness={1.0}
         />
       </mesh>
       
       {!falling && (
-        <mesh position={[0, -MARBLE_RADIUS + 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <circleGeometry args={[MARBLE_RADIUS * 1.1, 32]} />
-          <meshBasicMaterial color="#000000" transparent opacity={0.4} />
+        <mesh position={[0, -MARBLE_RADIUS + 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <circleGeometry args={[MARBLE_RADIUS * 1.05, 64]} />
+          <meshBasicMaterial color="#000000" transparent opacity={0.5} />
         </mesh>
       )}
     </group>

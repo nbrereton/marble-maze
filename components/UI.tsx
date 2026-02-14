@@ -36,8 +36,13 @@ export const UI: React.FC<UIProps> = ({
   onToggleTheme,
   onChangeDifficulty 
 }) => {
-  const normX = tilt.z / MAX_TILT; 
-  const normY = -tilt.x / MAX_TILT;
+  // Corrected orientation mapping:
+  // tilt.z is roll (around Z). In App.tsx, mouse RIGHT results in negative tilt.z.
+  // We want indicator RIGHT (normX > 0) when tilt.z is negative.
+  const normX = -tilt.z / MAX_TILT; 
+  // tilt.x is pitch (around X). In App.tsx, mouse DOWN results in positive tilt.x.
+  // We want indicator DOWN (normY > 0) when tilt.x is positive.
+  const normY = tilt.x / MAX_TILT;
 
   if (gameState === GameState.START_MENU) {
     return (

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 
 export const JazzyMusic: React.FC<{ isPlaying: boolean }> = ({ isPlaying }) => {
@@ -6,22 +5,32 @@ export const JazzyMusic: React.FC<{ isPlaying: boolean }> = ({ isPlaying }) => {
   const isStarted = useRef(false);
 
   useEffect(() => {
-    if (isPlaying && !isStarted.current) {
-      startMusic();
-      isStarted.current = true;
-    } else if (!isPlaying && audioCtxRef.current) {
-      audioCtxRef.current.suspend();
-    } else if (isPlaying && audioCtxRef.current) {
-      audioCtxRef.current.resume();
-    }
+    const handleInteraction = async () => {
+      if (isPlaying && !isStarted.current) {
+        startMusic();
+        isStarted.current = true;
+      } else if (audioCtxRef.current) {
+        if (isPlaying && audioCtxRef.current.state === 'suspended') {
+          await audioCtxRef.current.resume().catch(() => {});
+        } else if (!isPlaying && audioCtxRef.current.state === 'running') {
+          await audioCtxRef.current.suspend().catch(() => {});
+        }
+      }
+    };
+
+    handleInteraction();
   }, [isPlaying]);
 
   const startMusic = () => {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    
     const ctx = new AudioContextClass();
     audioCtxRef.current = ctx;
 
     const playNote = (freq: number, startTime: number, duration: number, volume: number = 0.1) => {
+      if (ctx.state === 'closed') return;
+      
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'triangle';
@@ -42,20 +51,19 @@ export const JazzyMusic: React.FC<{ isPlaying: boolean }> = ({ isPlaying }) => {
 
     let beat = 0;
     const loop = () => {
+      if (ctx.state === 'closed') return;
+      
       const now = ctx.currentTime;
       const stepTime = 0.5;
 
-      // Chord stab
       if (beat % 4 === 0) {
         const chord = jazzChords[Math.floor(beat / 4) % jazzChords.length];
         chord.forEach(f => playNote(f, now, 1.5, 0.05));
       }
 
-      // Bass note
       const bassFreqs = [65.41, 73.42, 98.00, 87.31];
       playNote(bassFreqs[Math.floor(beat / 2) % bassFreqs.length], now, 0.4, 0.1);
 
-      // Hi-hat
       const noiseOsc = ctx.createOscillator();
       const noiseGain = ctx.createGain();
       noiseOsc.type = 'square';

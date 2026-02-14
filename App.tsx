@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { PerspectiveCamera, Stars, Text, Environment, Float } from '@react-three/drei';
+import { PerspectiveCamera, Stars, Text, Environment, Float, ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
 import { GameState, MazeData, Difficulty, Theme, MarbleColor } from './types.ts';
 import { DIFFICULTY_CONFIG, MAX_TILT, DEADZONE, TILT_SPEED, INTRO_DURATION, DRAG_SENSITIVITY } from './constants.ts';
@@ -80,10 +80,28 @@ const Scene: React.FC<{
     <>
       <color attach="background" args={['#020202']} />
       <PerspectiveCamera makeDefault fov={50} position={[0, 40, 40]} />
-      <ambientLight intensity={0.5} />
-      <pointLight position={[30, 60, 30]} intensity={12} castShadow shadow-mapSize={[2048, 2048]} />
-      <pointLight position={[-30, 40, -10]} intensity={4} color="#5577ff" />
-      <Environment preset="apartment" />
+      
+      <ambientLight intensity={0.3} />
+      
+      <directionalLight
+        position={[20, 50, 20]}
+        intensity={2}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-bias={-0.0001}
+      />
+
+      <pointLight 
+        position={[-15, 20, 15]} 
+        intensity={25} 
+        color="#ffffff" 
+        decay={2}
+        distance={100}
+      />
+      
+      <pointLight position={[0, 30, -10]} intensity={5} color="#5577ff" />
+      
+      <Environment preset="studio" />
       <Stars radius={150} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
       
       <group rotation={[tilt.x, 0, tilt.z]}>
@@ -100,6 +118,13 @@ const Scene: React.FC<{
           demoPath={demoPath}
           setTilt={setTilt}
           marbleColor={marbleColor}
+        />
+        <ContactShadows 
+          position={[0, -0.01, 0]} 
+          opacity={0.5} 
+          scale={mazeWidth * 1.8} 
+          blur={2} 
+          far={10} 
         />
       </group>
 
@@ -201,7 +226,6 @@ const App: React.FC = () => {
     };
     const handleKeyUp = (e: KeyboardEvent) => keys.current[e.key.toLowerCase()] = false;
     
-    // Unified Pointer Event Handlers
     const handlePointerDown = (e: PointerEvent) => {
       if (gameState !== GameState.PLAYING || isDemoMode) return;
       if (e.pointerType === 'touch' || e.pointerType === 'pen') {
@@ -214,24 +238,20 @@ const App: React.FC = () => {
       if (gameState !== GameState.PLAYING || isDemoMode) return;
 
       if (e.pointerType === 'mouse') {
-        // Desktop Hover Logic: Tilt based on mouse position relative to window center
-        const nx = (e.clientX / window.innerWidth) * 2 - 1;
-        const ny = (e.clientY / window.innerHeight) * 2 - 1;
+        // Ultra-high sensitivity mapping (3.0x) for maximum responsiveness
+        const sensitivity = 3.0; 
+        const nx = THREE.MathUtils.clamp(((e.clientX / window.innerWidth) * 2 - 1) * sensitivity, -1, 1);
+        const ny = THREE.MathUtils.clamp(((e.clientY / window.innerHeight) * 2 - 1) * sensitivity, -1, 1);
+        
         const tx = Math.abs(ny) < DEADZONE ? 0 : ny * MAX_TILT;
         const tz = Math.abs(nx) < DEADZONE ? 0 : -nx * MAX_TILT;
         setTilt({ x: tx, z: tz });
       } else if (isTouchDragging.current && dragStart.current) {
-        // Touch Drag Logic: Tilt relative to the touch start point
         const dx = e.clientX - dragStart.current.x;
         const dy = e.clientY - dragStart.current.y;
-        
         const normX = THREE.MathUtils.clamp(dx / DRAG_SENSITIVITY, -1, 1);
         const normY = THREE.MathUtils.clamp(dy / DRAG_SENSITIVITY, -1, 1);
-        
-        setTilt({
-          x: normY * MAX_TILT,
-          z: -normX * MAX_TILT
-        });
+        setTilt({ x: normY * MAX_TILT, z: -normX * MAX_TILT });
       }
     };
 
@@ -239,7 +259,7 @@ const App: React.FC = () => {
       if (e.pointerType === 'touch' || e.pointerType === 'pen') {
         isTouchDragging.current = false;
         dragStart.current = null;
-        setTilt({ x: 0, z: 0 }); // Level board on release for touch
+        setTilt({ x: 0, z: 0 });
       }
     };
 
@@ -268,7 +288,6 @@ const App: React.FC = () => {
       }
       if (gameState !== GameState.PLAYING || isDemoMode) return;
       
-      // IJKL Keyboard Overrides
       const i = keys.current['i'], k = keys.current['k'], j = keys.current['j'], l = keys.current['l'];
       if (i || k || j || l) {
         setTilt(prev => {
@@ -277,9 +296,8 @@ const App: React.FC = () => {
           if (k) nx = Math.min(nx + TILT_SPEED, MAX_TILT);
           if (j) nz = Math.min(nz + TILT_SPEED, MAX_TILT);
           if (l) nz = Math.max(nz - TILT_SPEED, -MAX_TILT);
-          // Only damp if not currently being actively controlled by mouse or keyboard
-          if (!i && !k && !isTouchDragging.current) nx *= 0.88;
-          if (!j && !l && !isTouchDragging.current) nz *= 0.88;
+          if (!i && !k && !isTouchDragging.current) nx *= 0.8; // Snappy return
+          if (!j && !l && !isTouchDragging.current) nz *= 0.8;
           return { x: nx, z: nz };
         });
       }
@@ -292,7 +310,7 @@ const App: React.FC = () => {
       <JazzyMusic isPlaying={gameState === GameState.PLAYING} />
       <VictorySounds trigger={gameState === GameState.VICTORY} />
       
-      <Canvas shadows gl={{ antialias: true, alpha: false }} dpr={[1, 2]}>
+      <Canvas shadows gl={{ antialias: true, alpha: false, logarithmicDepthBuffer: true }} dpr={[1, 2]}>
         <Suspense fallback={null}>
           <Scene 
             key={`${maze.width}-${marbleStart.x}-${marbleStart.z}`} 
@@ -338,7 +356,7 @@ const App: React.FC = () => {
               onClick={handleReset}
               className="mt-12 pointer-events-auto bg-amber-500 hover:bg-amber-400 text-black px-12 py-4 rounded-full font-black text-2xl shadow-2xl transition-all active:scale-95 hover:scale-110 tracking-widest"
            >
-              PLAY AGAIN (R)
+              PLAY AGAIN
            </button>
         </div>
       )}

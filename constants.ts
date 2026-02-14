@@ -22,11 +22,10 @@ export const DIFFICULTY_CONFIG = {
 };
 
 export const CELL_SIZE = 1.0;
-export const WALL_HEIGHT = 0.8;
+export const WALL_HEIGHT = 0.375; // 75% of marble diameter (0.5)
 export const MARBLE_RADIUS = 0.25;
-export const MAX_TILT = 15 * (Math.PI / 180);
-export const DEADZONE = 0.05;
+export const MAX_TILT = 30 * (Math.PI / 180); // Increased to 30 degrees for more responsiveness
+export const DEADZONE = 0.012; // Even tighter deadzone for precision
 export const INTRO_DURATION = 8000;
-export const TILT_SPEED = 0.02;
-// Drag 150 pixels for max tilt
-export const DRAG_SENSITIVITY = 150;
+export const TILT_SPEED = 0.045; // Faster tilt accumulation for snappier keys
+export const DRAG_SENSITIVITY = 90; // Higher sensitivity for touch/drag
