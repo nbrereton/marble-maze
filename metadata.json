@@ -1,0 +1,5 @@
+{
+  "name": "Marble Maze Pro",
+  "description": "A high-fidelity 3D marble maze simulation with procedural level generation, physics-based controls, and a smooth cinematic intro.",
+  "requestFramePermissions": []
+}
