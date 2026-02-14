@@ -1,5 +1,6 @@
 
-import { useEffect } from 'react';
+// Import React to resolve the namespace issue when using React.FC
+import React, { useEffect } from 'react';
 
 export const playTrumpetBlast = async () => {
   try {

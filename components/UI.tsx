@@ -98,7 +98,7 @@ export const UI: React.FC<UIProps> = ({
           </div>
 
           <div className="mt-8 text-zinc-500 text-[10px] flex justify-center gap-4 uppercase tracking-widest font-bold">
-            <div><span className="text-white bg-white/5 px-2 py-0.5 rounded mr-1">WASD</span> TILT</div>
+            <div><span className="text-white bg-white/5 px-2 py-0.5 rounded mr-1">IJKL</span> TILT</div>
             <div><span className="text-white bg-white/5 px-2 py-0.5 rounded mr-1">MOUSE</span> TILT</div>
             <div><span className="text-white bg-white/5 px-2 py-0.5 rounded mr-1">D</span> SOLVE</div>
           </div>

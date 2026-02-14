@@ -234,16 +234,18 @@ const App: React.FC = () => {
         return;
       }
       if (gameState !== GameState.PLAYING || isDemoMode) return;
-      const w = keys.current['w'], s = keys.current['s'], a = keys.current['a'], d = keys.current['d'];
-      if (w || s || a || d) {
+      // Using IJKL for tilt controls
+      const i = keys.current['i'], k = keys.current['k'], j = keys.current['j'], l = keys.current['l'];
+      if (i || k || j || l) {
         setTilt(prev => {
           let nx = prev.x, nz = prev.z;
-          if (w) nx = Math.max(nx - TILT_SPEED, -MAX_TILT);
-          if (s) nx = Math.min(nx + TILT_SPEED, MAX_TILT);
-          if (a) nz = Math.max(nz - TILT_SPEED, -MAX_TILT);
-          if (d) nz = Math.min(nz + TILT_SPEED, MAX_TILT);
-          if (!w && !s) nx *= 0.88;
-          if (!a && !d) nz *= 0.88;
+          if (i) nx = Math.max(nx - TILT_SPEED, -MAX_TILT);
+          if (k) nx = Math.min(nx + TILT_SPEED, MAX_TILT);
+          // Swapped J and L logic for intuitive tilt
+          if (j) nz = Math.min(nz + TILT_SPEED, MAX_TILT); // J (Left) tilts board Left (Rolls Left)
+          if (l) nz = Math.max(nz - TILT_SPEED, -MAX_TILT); // L (Right) tilts board Right (Rolls Right)
+          if (!i && !k) nx *= 0.88;
+          if (!j && !l) nz *= 0.88;
           return { x: nx, z: nz };
         });
       }
